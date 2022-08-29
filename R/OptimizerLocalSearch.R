@@ -29,7 +29,7 @@
 #' }
 #' \item{`n_points`}{`integer(1)`\cr
 #'   Number of neighboring points to generate for each of the `mu` initial points in each iteration.
-#'   Default is `100`.
+#'   Default is `1000`.
 #' }
 #' \item{`sigma`}{`numeric(1)`\cr
 #'   Standard deviation used for mutation of numeric parameters.

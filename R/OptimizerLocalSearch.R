@@ -104,6 +104,7 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
       names(ranges) = ids_numeric
 
       ids_categorical = intersect(names(which(inst$search_space$is_categ)), ids_to_mutate)
+      ids_categorical = ids_categorical[map_lgl(inst$search_space$params[ids_categorical], function(x) x$nlevels > 1L)]
 
       repeat {  # iterate until we have an exception from eval_batch
         neighbors = map_dtr(seq_len(nrow(points)), function(i) {

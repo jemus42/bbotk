@@ -19,9 +19,6 @@
 #' on (i.e., they are parents of a [paradox::Condition], see the dependencies of the search space)
 #' are not mutated.
 #'
-#' If `update_mu_points_after_eval` is `TRUE`, the `mu` best initial points are updated after each
-#' iteration resulting in a more focused search.
-#'
 #' @templateVar id local_search
 #' @template section_dictionary_optimizers
 #'
@@ -34,17 +31,13 @@
 #' \item{`n_points`}{`integer(1)`\cr
 #'   Number of neighboring points to generate for each of the `mu` best starting points in each
 #'   iteration.
-#'   Default is `1000`.
+#'   Default is `100`.
 #' }
 #' \item{`sigma`}{`numeric(1)`\cr
 #'   Standard deviation used for mutation of numeric parameters.
 #'   Number of neighboring points to generate for each of the `mu` starting points in each
 #'   iteration.
-#'   Default is `0.05`.
-#' }
-#' \item{`update_mu_points_after_eval`}{`logical(1)`\cr
-#'   Should the `mu` best initial points be updated after each iteration?
-#'   Default is `FALSE`.
+#'   Default is `0.1`.
 #' }
 #' }
 #'
@@ -62,16 +55,15 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
       param_set = ps(
         mu = p_int(lower = 1L, default = 10L, tags = "required"),
         n_points = p_int(lower = 1L, default = 100L, tags = "required"),
-        sigma = p_dbl(lower = 0L, default = 0.05, tags = "required"),
-        update_mu_points_after_eval = p_lgl(default = FALSE, tags = "required")
+        sigma = p_dbl(lower = 0L, default = 0.1, tags = "required")
       )
-      param_set$values = list(mu = 10L, n_points = 1000L, sigma = 0.1, update_mu_points_after_eval = FALSE)
+      param_set$values = list(mu = 10L, n_points = 100L, sigma = 0.1)
 
       super$initialize(
         id = "local_search",
         param_set = param_set,
         param_classes = c("ParamLgl", "ParamInt", "ParamDbl", "ParamFct"),
-        properties = c("dependencies", "single-crit", "multi-crit"),
+        properties = c("dependencies", "single-crit"),  # NOTE: think about multi-crit version
         label = "Local Search",
         man = "mlr3mbo::mlr_optimizers_local_search"
       )
@@ -81,17 +73,17 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
   private = list(
     .optimize = function(inst) {
       mu = self$param_set$values$mu
+      mu_seq = seq_len(mu)
       n_points = self$param_set$values$n_points
+      n_points_seq = seq_len(n_points)
       sigma = self$param_set$values$sigma
-      update_mu_points_after_eval = self$param_set$values$update_mu_points_after_eval
 
       # if no reference points in archive, generate mu by sampling uniformly at random
       if (inst$archive$n_evals < mu) {
-        sampler = SamplerUnif$new(inst$search_space)
-        design = sampler$sample(mu - inst$archive$n_evals)
-        inst$eval_batch(design$data)
+        data = generate_design_random(inst$search_space, n = mu - inst$archive$n_evals)$data
+        inst$eval_batch(data)
       }
-      points = inst$archive$best(n_select = mu)[, inst$archive$cols_x, with = FALSE]
+      points = inst$archive$best(n_select = mu)[, c(inst$archive$cols_x, inst$archive$cols_y), with = FALSE]
 
       # we do not mutate parents of conditions
       ids_to_mutate = setdiff(inst$search_space$ids(), unique(inst$search_space$deps$on)) 
@@ -107,14 +99,26 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
       ids_categorical = ids_categorical[map_lgl(inst$search_space$params[ids_categorical], function(x) x$nlevels > 1L)]
 
       repeat {  # iterate until we have an exception from eval_batch
-        neighbors = map_dtr(seq_len(nrow(points)), function(i) {
-          map_dtr(seq_len(n_points), function(j) {
-            mutate_point(points[i, ], search_space = inst$search_space, ranges = ranges, ids_numeric = ids_numeric, ids_categorical = ids_categorical, sigma = sigma)
+        # generate neighbors
+        neighbors = map_dtr(mu_seq, function(i) {
+          neighbors_i = map_dtr(n_points_seq, function(j) {
+            # FIXME: mutating is currently quite slow, should do this vectorized
+            mutate_point(points[i, inst$archive$cols_x, with = FALSE], search_space = inst$search_space, ranges = ranges, ids_numeric = ids_numeric, ids_categorical = ids_categorical, sigma = sigma)
           })
+          neighbors_i[, .point_id := i]
         })
+
+        # evaluate neighbors
         inst$eval_batch(neighbors)
-        if (update_mu_points_after_eval) {
-          points = inst$archive$best(n_select = mu)[, inst$archive$cols_x, with = FALSE]
+
+        # update points if better neighbor found
+        for (i in mu_seq) {
+          tmp = inst$archive$data[.point_id == i]
+          difference = (tmp[[inst$archive$cols_y]] * inst$objective_multiplicator) - (points[i, ][[inst$archive$cols_y]] * inst$objective_multiplicator)
+          if (any(difference < 0)) {
+            best = which.min(difference)
+            points[i, ] = tmp[best, c(inst$archive$cols_x, inst$archive$cols_y), with = FALSE]
+          }
         }
       }
     }

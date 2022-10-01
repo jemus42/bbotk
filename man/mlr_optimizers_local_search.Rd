@@ -13,15 +13,12 @@ random are evaluated.
 In each iteration, for each of the \code{mu} initial best points, \code{n_points} neighbors are generated
 by local mutation. Local mutation samples up to four numeric and a single categorical parameter
 that are to be mutated and then proceeds as follows: Double parameters (\link[paradox:ParamDbl]{paradox::ParamDbl}) are
-mutated via Gaussian mutation (using \code{sigma} scaled by the range of the parameter as a standard
-deviation). Integer parameters (\link[paradox:ParamInt]{paradox::ParamInt}) undergo the same mutation but are rounded to
-the closest integer after mutation. Categorical parameters (\link[paradox:ParamFct]{paradox::ParamFct} and
+mutated via Gaussian mutation (with a prior standardization to \verb{[0, 1]} and retransformation
+after mutation). Integer parameters (\link[paradox:ParamInt]{paradox::ParamInt}) undergo the same mutation but are
+rounded to the closest integer after mutation. Categorical parameters (\link[paradox:ParamFct]{paradox::ParamFct} and
 \link[paradox:ParamLgl]{paradox::ParamLgl}) are mutated via uniform mutation. Note that parameters that are conditioned
 on (i.e., they are parents of a \link[paradox:Condition]{paradox::Condition}, see the dependencies of the search space)
 are not mutated.
-
-If \code{update_mu_points_after_eval} is \code{TRUE}, the \code{mu} best initial points are updated after each
-iteration resulting in a more focused search.
 }
 \section{Dictionary}{
 
@@ -43,17 +40,11 @@ Default is \code{10}.
 \item{\code{n_points}}{\code{integer(1)}\cr
 Number of neighboring points to generate for each of the \code{mu} best starting points in each
 iteration.
-Default is \code{1000}.
+Default is \code{100}.
 }
 \item{\code{sigma}}{\code{numeric(1)}\cr
 Standard deviation used for mutation of numeric parameters.
-Number of neighboring points to generate for each of the \code{mu} starting points in each
-iteration.
-Default is \code{0.05}.
-}
-\item{\code{update_mu_points_after_eval}}{\code{logical(1)}\cr
-Should the \code{mu} best initial points be updated after each iteration?
-Default is \code{FALSE}.
+Default is \code{0.1}.
 }
 }
 }

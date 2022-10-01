@@ -12,9 +12,9 @@
 #' In each iteration, for each of the `mu` initial best points, `n_points` neighbors are generated
 #' by local mutation. Local mutation samples up to four numeric and a single categorical parameter
 #' that are to be mutated and then proceeds as follows: Double parameters ([paradox::ParamDbl]) are
-#' mutated via Gaussian mutation (using `sigma` scaled by the range of the parameter as a standard
-#' deviation). Integer parameters ([paradox::ParamInt]) undergo the same mutation but are rounded to
-#' the closest integer after mutation. Categorical parameters ([paradox::ParamFct] and
+#' mutated via Gaussian mutation (with a prior standardization to `[0, 1]` and retransformation
+#' after mutation). Integer parameters ([paradox::ParamInt]) undergo the same mutation but are
+#' rounded to the closest integer after mutation. Categorical parameters ([paradox::ParamFct] and
 #' [paradox::ParamLgl]) are mutated via uniform mutation. Note that parameters that are conditioned
 #' on (i.e., they are parents of a [paradox::Condition], see the dependencies of the search space)
 #' are not mutated.
@@ -35,8 +35,6 @@
 #' }
 #' \item{`sigma`}{`numeric(1)`\cr
 #'   Standard deviation used for mutation of numeric parameters.
-#'   Number of neighboring points to generate for each of the `mu` starting points in each
-#'   iteration.
 #'   Default is `0.1`.
 #' }
 #' }
@@ -88,12 +86,7 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
       # we do not mutate parents of conditions
       ids_to_mutate = setdiff(inst$search_space$ids(), unique(inst$search_space$deps$on)) 
 
-      # get ranges of numeric params for mutation
       ids_numeric = intersect(names(which(inst$search_space$is_number)), ids_to_mutate)
-      ranges = map(ids_numeric, function(id) {
-        inst$search_space$params[[id]]$upper - inst$search_space$params[[id]]$lower
-      })
-      names(ranges) = ids_numeric
 
       ids_categorical = intersect(names(which(inst$search_space$is_categ)), ids_to_mutate)
       ids_categorical = ids_categorical[map_lgl(inst$search_space$params[ids_categorical], function(x) x$nlevels > 1L)]
@@ -102,8 +95,8 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
         # generate neighbors
         neighbors = map_dtr(mu_seq, function(i) {
           neighbors_i = map_dtr(n_points_seq, function(j) {
-            # FIXME: mutating is currently quite slow, should do this vectorized
-            mutate_point(points[i, inst$archive$cols_x, with = FALSE], search_space = inst$search_space, ranges = ranges, ids_numeric = ids_numeric, ids_categorical = ids_categorical, sigma = sigma)
+            # NOTE: mutating is currently quite slow because we sample the ids to be mutated and the mutation for each neighbor and new point 
+           mutate_point(points[i, inst$archive$cols_x, with = FALSE], search_space = inst$search_space, ids_numeric = ids_numeric, ids_categorical = ids_categorical, sigma = sigma)
           })
           neighbors_i[, .point_id := i]
         })
@@ -127,21 +120,23 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
 
 mlr_optimizers$add("local_search", OptimizerLocalSearch)
 
-mutate_point = function(point, search_space, ranges, ids_numeric, ids_categorical, sigma) {
+mutate_point = function(point, search_space, ids_numeric, ids_categorical, sigma) {
   neighbor = copy(point)
   valid_numeric_to_mutate = intersect(names(which(!map_lgl(neighbor, is.na))), ids_numeric)
   valid_cateorical_to_mutate = intersect(names(which(!map_lgl(neighbor, is.na))), ids_categorical)
   ids = c(sample(valid_numeric_to_mutate, size = min(length(valid_numeric_to_mutate), 4L), replace = FALSE), sample(valid_cateorical_to_mutate, size = min(length(valid_cateorical_to_mutate), 1L)))
   for (id in ids) {
-    neighbor[1L, ][[id]] = mutate(neighbor[1L, ][[id]], param = search_space$params[[id]], range = ranges[[id]], sigma = sigma)
+    neighbor[1L, ][[id]] = mutate(neighbor[1L, ][[id]], param = search_space$params[[id]], sigma = sigma)
   }
   neighbor
 }
 
-mutate = function(value, param, range, sigma) {
+mutate = function(value, param, sigma) {
   stopifnot(param$class %in% c("ParamDbl", "ParamFct", "ParamInt", "ParamLgl"))
   if (param$class %in% c("ParamDbl", "ParamInt")) {
-    value = stats::rnorm(1L, mean = value, sd = sigma * range)
+    value_ = (value - param$lower) / (param$upper - param$lower)
+    value_ = max(0, min(stats::rnorm(1L, mean = value_, sd = sigma), 1))
+    value = (value_ * (param$upper - param$lower)) + param$lower
     if (param$class == "ParamInt") {
       value = round(value, 0L)
     }

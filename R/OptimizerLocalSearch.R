@@ -91,6 +91,11 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
       ids_categorical = intersect(names(which(inst$search_space$is_categ)), ids_to_mutate)
       ids_categorical = ids_categorical[map_lgl(inst$search_space$params[ids_categorical], function(x) x$nlevels > 1L)]
 
+      point_id = ".point_id"
+      while(point_id %in% c(inst$archive$cols_x, inst$archive$cols_y)) {
+        point_id = paste0(".", point_id)
+      }
+
       repeat {  # iterate until we have an exception from eval_batch
         # generate neighbors
         neighbors = map_dtr(mu_seq, function(i) {
@@ -98,7 +103,7 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
             # NOTE: mutating is currently quite slow because we sample the ids to be mutated and the mutation for each neighbor and new point 
            mutate_point(points[i, inst$archive$cols_x, with = FALSE], search_space = inst$search_space, ids_numeric = ids_numeric, ids_categorical = ids_categorical, sigma = sigma)
           })
-          neighbors_i[, .point_id := i]
+          set(neighbors_i, j = point_id, value = i)
         })
 
         # evaluate neighbors
@@ -106,7 +111,7 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
 
         # update points if better neighbor found
         for (i in mu_seq) {
-          tmp = inst$archive$data[.point_id == i]
+          tmp = inst$archive$data[eval(point_id) == i]
           difference = (tmp[[inst$archive$cols_y]] * inst$objective_multiplicator) - (points[i, ][[inst$archive$cols_y]] * inst$objective_multiplicator)
           if (any(difference < 0)) {
             best = which.min(difference)

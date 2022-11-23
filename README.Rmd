@@ -3,9 +3,14 @@ output: github_document
 ---
 
 ```{r, include = FALSE}
+library(bbotk)
 lgr::get_logger("bbotk")$set_threshold("warn")
 set.seed(1)
-options(datatable.print.class = FALSE, datatable.print.keys = FALSE)
+options(
+  datatable.print.nrows = 10,
+  datatable.print.class = FALSE,
+  datatable.print.keys = FALSE,
+  width = 100)
 ```
 
 # bbotk - Black-Box Optimization Toolkit
@@ -13,20 +18,24 @@ options(datatable.print.class = FALSE, datatable.print.keys = FALSE)
 Package website: [release](https://bbotk.mlr-org.com/) | [dev](https://bbotk.mlr-org.com/dev/)
 
 <!-- badges: start -->
-[![tic](https://github.com/mlr-org/bbotk/workflows/tic/badge.svg?branch=main)](https://github.com/mlr-org/bbotk/actions)
+[![r-cmd-check](https://github.com/mlr-org/bbotk/actions/workflows/r-cmd-check.yml/badge.svg)](https://github.com/mlr-org/bbotk/actions/workflows/r-cmd-check.yml)
 [![CRAN Status Badge](https://www.r-pkg.org/badges/version-ago/bbotk)](https://cran.r-project.org/package=bbotk)
+[![Mattermost](https://img.shields.io/badge/chat-mattermost-orange.svg)](https://lmmisld-lmu-stats-slds.srv.mwn.de/mlr_invite/)
 <!-- badges: end -->
 
-This package provides a common framework for optimization including
+*bbotk* is a black-box optimization framework for R.
+It features highly configurable search spaces via the [paradox](https://github.com/mlr-org/paradox) package and optimizes every user-defined objective function.
+The package includes several optimization algorithms e.g. Random Search, Iterated Racing, Bayesian Optimization (in [mlr3mbo](https://github.com/mlr-org/mlr3mbo)) and Hyperband (in [mlr3hyperband](https://github.com/mlr-org/mlr3hyperband)).
+bbotk is the base package of [mlr3tuning](https://github.com/mlr-org/mlr3tuning), [mlr3fselect](https://github.com/mlr-org/mlr3fselect) and [miesmuschel](https://github.com/mlr-org/miesmuschel).
+
+The package includes the basic building blocks of optimization:
 
 * `Optimizer`: Objects of this class allow you to optimize an object of the class `OptimInstance`.
-* `OptimInstance`: Defines the optimization problem, consisting of an `Objective`, the `search_space` and a `Terminator`.
+* `OptimInstance`: Defines the optimization problem, consisting of an `Objective`, the `search_space`, and a `Terminator`.
    All evaluations on the `OptimInstance` will be automatically stored in its own `Archive`.
 * `Objective`: Objects of this class contain the objective function.
    The class ensures that the objective function is called in the right way and defines, whether the function should be minimized or maximized.
 * `Terminator`: Objects of this class control the termination of the optimization independent of the optimizer.
-
-Various optimization methods are already implemented e.g. grid search, random search and generalized simulated annealing.
 
 ## Resources
 
@@ -48,15 +57,10 @@ remotes::install_github("mlr-org/bbotk")
 
 ## Examples
 
-```{r, include = FALSE}
-# mute load messages
-library(bbotk)
-```
-
 ### Optimization
 
 ```{r}
-# define objective function
+# define the objective function
 fun = function(xs) {
   - (xs[[1]] - 2)^2 - (xs[[2]] + 3)^2 + 10
 }
@@ -107,9 +111,9 @@ as.data.table(instance$archive)
 ```{r}
 library(bbotk)
 
-# define objective function
+# define the objective function
 fun = function(xs) {
-  c(y = - (xs[[1]] - 2)^2 - (xs[[2]] + 3)^2 + 10)
+  c(y1 = - (xs[[1]] - 2)^2 - (xs[[2]] + 3)^2 + 10)
 }
 
 # optimize function with random search

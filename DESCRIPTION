@@ -1,6 +1,6 @@
 Package: bbotk
 Title: Black-Box Optimization Toolkit
-Version: 0.5.4
+Version: 0.7.0.9000
 Authors@R:
     c(person(given = "Marc",
              family = "Becker",
@@ -45,13 +45,13 @@ Imports:
     data.table,
     lgr,
     methods,
-    mlr3misc (>= 0.10.0),
+    mlr3misc (>= 0.11.0),
     R6
 Suggests:
     adagio,
     emoa,
     GenSA,
-    irace,
+    irace (>= 3.5),
     knitr,
     nloptr,
     progressr,
@@ -69,10 +69,13 @@ RoxygenNote: 7.2.1
 Collate:
     'Archive.R'
     'ArchiveBest.R'
+    'CallbackOptimization.R'
     'Codomain.R'
+    'ContextOptimization.R'
     'Objective.R'
     'ObjectiveRFun.R'
     'ObjectiveRFunDt.R'
+    'ObjectiveRFunMany.R'
     'OptimInstance.R'
     'OptimInstanceMultiCrit.R'
     'OptimInstanceSingleCrit.R'
@@ -103,7 +106,8 @@ Collate:
     'bbotk_reflections.R'
     'bibentries.R'
     'helper.R'
-    'helper_irace.R'
+    'mlr_callbacks.R'
     'nds_selection.R'
+    'reexport.R'
     'sugar.R'
     'zzz.R'

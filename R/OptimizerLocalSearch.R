@@ -10,14 +10,13 @@
 #' random are evaluated.
 #'
 #' In each iteration, for each of the `mu` initial best points, `n_points` neighbors are generated
-#' by local mutation. Local mutation samples up to four numeric and a single categorical parameter
-#' that are to be mutated and then proceeds as follows: Double parameters ([paradox::ParamDbl]) are
-#' mutated via Gaussian mutation (with a prior standardization to `[0, 1]` and retransformation
-#' after mutation). Integer parameters ([paradox::ParamInt]) undergo the same mutation but are
-#' rounded to the closest integer after mutation. Categorical parameters ([paradox::ParamFct] and
-#' [paradox::ParamLgl]) are mutated via uniform mutation. Note that parameters that are conditioned
-#' on (i.e., they are parents of a [paradox::Condition], see the dependencies of the search space)
-#' are not mutated.
+#' by local mutation. Local mutation generates a neighbor by sampling a single parameter that is to
+#' be mutated and then proceeds as follows: Double parameters ([paradox::ParamDbl]) are mutated via
+#' Gaussian mutation (with a prior standardization to `[0, 1]` and retransformation after mutation).
+#' Integer parameters ([paradox::ParamInt]) undergo the same mutation but are rounded to the closest
+#' integer after mutation. Categorical parameters ([paradox::ParamFct] and [paradox::ParamLgl]) are
+#' mutated via uniform mutation. Note that parameters that are conditioned on (i.e., they are
+#' parents of a [paradox::Condition], see the dependencies of the search space) are not mutated.
 #'
 #' @templateVar id local_search
 #' @template section_dictionary_optimizers
@@ -25,7 +24,7 @@
 #' @section Parameters:
 #' \describe{
 #' \item{`mu`}{`integer(1)`\cr
-#'   Size of the initial best points which are used as a starting point for the Local Search.
+#'   Size of the initial best points which are used as a starting points for the Local Search.
 #'   Default is `10`.
 #' }
 #' \item{`n_points`}{`integer(1)`\cr
@@ -100,7 +99,7 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
         # generate neighbors
         neighbors = map_dtr(mu_seq, function(i) {
           neighbors_i = map_dtr(n_points_seq, function(j) {
-            # NOTE: mutating is currently quite slow because we sample the ids to be mutated and the mutation for each neighbor and new point 
+            # NOTE: mutating is currently quite slow because we sample the id to be mutated and the actual mutation for each neighbor and new point 
            mutate_point(points[i, inst$archive$cols_x, with = FALSE], search_space = inst$search_space, ids_numeric = ids_numeric, ids_categorical = ids_categorical, sigma = sigma)
           })
           set(neighbors_i, j = point_id, value = i)
@@ -111,7 +110,7 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
 
         # update points if better neighbor found
         for (i in mu_seq) {
-          tmp = inst$archive$data[get(point_id) == i]
+          tmp = inst$archive$data[batch_nr == inst$archive$n_batch & get(point_id) == i]
           difference = (tmp[[inst$archive$cols_y]] * inst$objective_multiplicator) - (points[i, ][[inst$archive$cols_y]] * inst$objective_multiplicator)
           if (any(difference < 0)) {
             best = which.min(difference)
@@ -129,10 +128,8 @@ mutate_point = function(point, search_space, ids_numeric, ids_categorical, sigma
   neighbor = copy(point)
   valid_numeric_to_mutate = intersect(names(which(!map_lgl(neighbor, is.na))), ids_numeric)
   valid_cateorical_to_mutate = intersect(names(which(!map_lgl(neighbor, is.na))), ids_categorical)
-  ids = c(sample(valid_numeric_to_mutate, size = min(length(valid_numeric_to_mutate), 4L), replace = FALSE), sample(valid_cateorical_to_mutate, size = min(length(valid_cateorical_to_mutate), 1L)))
-  for (id in ids) {
-    neighbor[1L, ][[id]] = mutate(neighbor[1L, ][[id]], param = search_space$params[[id]], sigma = sigma)
-  }
+  id = sample(c(valid_numeric_to_mutate, valid_cateorical_to_mutate), size = 1L)
+  neighbor[1L, ][[id]] = mutate(neighbor[1L, ][[id]], param = search_space$params[[id]], sigma = sigma)
   neighbor
 }
 

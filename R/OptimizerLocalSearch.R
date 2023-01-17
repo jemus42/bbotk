@@ -111,7 +111,7 @@ OptimizerLocalSearch = R6Class("OptimizerLocalSearch",
 
         # update points if better neighbor found
         for (i in mu_seq) {
-          tmp = inst$archive$data[eval(point_id) == i]
+          tmp = inst$archive$data[get(point_id) == i]
           difference = (tmp[[inst$archive$cols_y]] * inst$objective_multiplicator) - (points[i, ][[inst$archive$cols_y]] * inst$objective_multiplicator)
           if (any(difference < 0)) {
             best = which.min(difference)
